@@ -1,0 +1,6 @@
+---
+- name: Apply ProxySQL Role
+  hosts: proxysql
+  become: true
+  roles:
+    - role: proxysql

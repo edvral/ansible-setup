@@ -1,0 +1,18 @@
+---
+- name: Install ProxySQL
+  apt:
+    name: proxysql
+    state: present
+    update_cache: yes
+
+- name: Ensure ProxySQL is running
+  service:
+    name: proxysql
+    state: started
+    enabled: yes
+
+- name: Install MySQL Client
+  apt:
+    name: mysql-client
+    state: present
+    update_cache: yes

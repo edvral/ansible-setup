@@ -1,0 +1,21 @@
+---
+- name: Setup MySQL Master-Slave Replication
+  hosts: mysql_master
+  roles:
+    - mysql
+
+- name: Setup MySQL Slaves
+  hosts: mysql_slaves
+  roles:
+    - mysql
+
+- name: Install and Configure ProxySQL
+  hosts: proxysql
+  roles:
+    - proxysql
+
+- name: Setup Replication Manager
+  hosts: mysql_nodes, proxysql
+  become: yes
+  roles:
+    - replication_manager

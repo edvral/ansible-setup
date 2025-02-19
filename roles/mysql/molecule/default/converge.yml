@@ -1,0 +1,6 @@
+---
+- name: Apply MySQL Role
+  hosts: all
+  become: true
+  roles:
+    - role: mysql

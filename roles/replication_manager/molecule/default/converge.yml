@@ -1,0 +1,6 @@
+---
+- name: Apply Replication Manager Role
+  hosts: all
+  become: true
+  roles:
+    - replication_manager

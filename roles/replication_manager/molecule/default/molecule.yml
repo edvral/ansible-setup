@@ -1,0 +1,86 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: vagrant
+
+platforms:
+  - name: mysql-master
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    provider_options:
+      gui: false
+    groups:
+      - mysql_master
+    provisioner:
+      name: ansible
+      options:
+        vagrant-cwd: "{{ molecule_ephemeral_directory }}"
+
+  - name: mysql-slave1
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    groups:
+      - mysql_slaves
+
+  - name: mysql-slave2
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    groups:
+      - mysql_slaves
+
+  - name: proxysql
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    groups:
+      - proxysql
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ../../../../roles
+  inventory:
+    hosts:
+      mysql_master:
+        hosts:
+          mysql-master:
+            ansible_host: 192.168.56.101
+            ansible_user: vagrant
+            ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key
+            ansible_become: true
+            ansible_mysql_root_password: "your_root_password"
+
+      mysql_slaves:
+        hosts:
+          mysql-slave1:
+            ansible_host: 192.168.56.102
+            ansible_user: vagrant
+            ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_slave1
+            ansible_become: true
+            ansible_mysql_root_password: "your_root_password"
+          mysql-slave2:
+            ansible_host: 192.168.56.103
+            ansible_user: vagrant
+            ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_slave2
+            ansible_become: true
+            ansible_mysql_root_password: "your_root_password"
+
+      proxysql:
+        hosts:
+          proxysql:
+            ansible_host: 192.168.56.104
+            ansible_user: vagrant
+            ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_proxy
+            ansible_become: true
+            ansible_mysql_root_password: "admin"
+
+  playbooks:
+    converge: converge.yml
+
+verifier:
+  name: ansible

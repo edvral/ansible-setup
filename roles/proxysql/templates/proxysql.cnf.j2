@@ -1,0 +1,74 @@
+datadir="/var/lib/proxysql"
+errorlog="/var/lib/proxysql/proxysql.log"
+
+####################
+## ADMIN SETTINGS ##
+####################
+admin_credentials="admin:admin;proxyadmin:password123"
+admin-hash_passwords=false
+admin-web_enabled=false
+admin-mysql_ifaces="0.0.0.0:6032"
+
+####################
+## MYSQL SETTINGS ##
+####################
+mysql-interfaces="0.0.0.0:6033"
+mysql-threads=4
+mysql-max_connections=2048
+mysql-default_query_delay=0
+mysql-default_query_timeout=36000000
+mysql-have_compress=true
+mysql-poll_timeout=2000
+mysql-default_schema="information_schema"
+mysql-stacksize=1048576
+mysql-server_version="5.5.30"
+mysql-connect_timeout_server=3000
+
+##############################
+## MYSQL MONITORING SETTINGS ##
+##############################
+mysql-monitor_enabled=false
+mysql-monitor_username="monitor"
+mysql-monitor_password="monitor"
+mysql-monitor_history=600000
+mysql-monitor_connect_interval=60000
+mysql-monitor_ping_interval=10000
+mysql-monitor_read_only_interval=1500
+mysql-monitor_read_only_timeout=500
+mysql-monitor_replication_lag_interval=10000
+mysql-monitor_replication_lag_timeout=1000
+mysql-monitor_replication_lag_count=1
+mysql-monitor_writer_is_also_reader=true
+
+#########################
+## MYSQL SERVERS CONFIG ##
+#########################
+mysql_servers = (
+    { address="{{ hostvars['mysql-master']['ansible_host'] }}", port=3306, hostgroup_id=0, weight=100, max_connections=1000 },
+    { address="{{ hostvars['mysql-slave1']['ansible_host'] }}", port=3306, hostgroup_id=1, weight=100, max_connections=1000 },
+    { address="{{ hostvars['mysql-slave2']['ansible_host'] }}", port=3306, hostgroup_id=1, weight=100, max_connections=1000 }
+)
+
+#######################
+## MYSQL USERS CONFIG ##
+#######################
+mysql_users = (
+    { username="proxy_user", password="secure_password", default_hostgroup=0, active=1 },
+    { username="monitor", password="monitor", default_hostgroup=0, active=1 },
+    { username="repl", password="repl_password", default_hostgroup=0, active=1 }
+)
+
+##################################
+## MYSQL REPLICATION HOSTGROUPS ##
+##################################
+mysql_replication_hostgroups = (
+    { writer_hostgroup=0, reader_hostgroup=1, check_type="read_only" }
+)
+
+##############################
+## MYSQL QUERY ROUTING RULES ##
+##############################
+mysql_query_rules = (
+    { rule_id=100, active=1, match_pattern="^SELECT", destination_hostgroup=1, apply=1 },
+    { rule_id=101, active=1, match_pattern="^INSERT|^UPDATE|^DELETE", destination_hostgroup=0, apply=1 }
+)

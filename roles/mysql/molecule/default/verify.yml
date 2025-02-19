@@ -1,0 +1,33 @@
+---
+- name: Verify MySQL Deployment
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Check if MySQL is installed
+      shell: dpkg -l | grep mysql-server
+      register: mysql_installed
+      changed_when: false
+      failed_when: mysql_installed.rc != 0
+
+    - name: Check if MySQL service is running
+      shell: systemctl is-active mysql
+      register: mysql_status
+      changed_when: false
+      failed_when: mysql_status.stdout != "active"
+
+    - name: Check MySQL Configuration Exists
+      stat:
+        path: /etc/mysql/my.cnf
+      register: mysql_config
+
+    - name: Fail if MySQL Configuration is Missing
+      fail:
+        msg: "MySQL Configuration file is missing!"
+      when: not mysql_config.stat.exists
+
+    - name: Verify MySQL Master-Slave Replication
+      shell: "mysql -u root -p'{{ ansible_mysql_root_password }}' -e 'SHOW SLAVE STATUS\\G'"
+      register: slave_status
+      changed_when: false
+      failed_when: slave_status.stdout | length == 0 and inventory_hostname in groups['mysql_slaves']

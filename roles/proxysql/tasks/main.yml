@@ -1,0 +1,6 @@
+---
+- name: Install ProxySQL
+  include_tasks: install.yml
+
+- name: Configure ProxySQL
+  include_tasks: configure.yml

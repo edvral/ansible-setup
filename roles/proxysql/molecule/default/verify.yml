@@ -1,0 +1,63 @@
+---
+- name: Verify ProxySQL Deployment
+  hosts: proxysql
+  become: yes
+  gather_facts: false
+  tasks:
+
+    - name: Check if ProxySQL package is installed
+      shell: dpkg -l | grep proxysql
+      register: proxysql_installed
+      changed_when: false
+      failed_when: proxysql_installed.rc != 0
+      tags: installation
+
+    - name: Check if ProxySQL service is running
+      shell: systemctl is-active proxysql
+      register: proxysql_status
+      changed_when: false
+      failed_when: proxysql_status.stdout != "active"
+      tags: service
+
+    - name: Verify ProxySQL is listening on admin and MySQL ports
+      shell: "netstat -tulnp | grep proxysql"
+      register: proxysql_ports
+      changed_when: false
+      failed_when: "'6032' not in proxysql_ports.stdout or '6033' not in proxysql_ports.stdout"
+      tags: ports
+
+    - name: Check if ProxySQL config file exists
+      stat:
+        path: /etc/proxysql.cnf
+      register: proxysql_conf
+      failed_when: not proxysql_conf.stat.exists
+      tags: config
+
+    - name: Check ProxySQL Admin Users
+      shell: "mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e 'SELECT variable_value FROM global_variables WHERE variable_name = \"admin-admin_credentials\";'"
+      register: proxysql_admin_users
+      changed_when: false
+      failed_when: "'admin' not in proxysql_admin_users.stdout"
+      tags: admin
+
+    - name: Check MySQL servers registered in ProxySQL
+      shell: "mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e 'SELECT * FROM runtime_mysql_servers;'"
+      register: proxysql_servers
+      changed_when: false
+      failed_when: "'192.168.56.101' not in proxysql_servers.stdout"
+      tags: mysql_servers
+
+    - name: Check Query Routing Rules
+      shell: "mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e 'SELECT * FROM mysql_query_rules;'"
+      register: proxysql_query_rules
+      changed_when: false
+      failed_when: "'^SELECT' not in proxysql_query_rules.stdout"
+      tags: query_routing
+
+    - name: Test MySQL connection through ProxySQL
+      shell: "mysql -u proxy_user -psecure_password -h 192.168.56.104 -P 6033 -N -B -e 'SELECT @@hostname;'"
+      register: proxysql_mysql_test
+      changed_when: false
+      failed_when: "'mysql-master' not in proxysql_mysql_test.stdout and 'mysql-slave1' not in proxysql_mysql_test.stdout and 'mysql-slave2' not in proxysql_mysql_test.stdout"
+      tags: connection
+

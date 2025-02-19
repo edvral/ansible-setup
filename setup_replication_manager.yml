@@ -1,0 +1,5 @@
+- name: Setup Replication Manager
+  hosts: mysql_nodes, proxysql
+  become: yes
+  roles:
+    - replication_manager

@@ -1,0 +1,21 @@
+- name: Update all servers
+  hosts: mysql_master,mysql_slaves,proxysql
+  become: yes
+  tasks:
+    - name: Update package lists
+      apt:
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+
+    - name: Install basic utilities
+      apt:
+        name:
+          - vim
+          - curl
+          - wget
+          - net-tools
+          - htop
+        state: present

@@ -1,0 +1,26 @@
+---
+- name: Verify Replication Manager & ProxySQL Deployment
+  hosts: all
+  gather_facts: false
+  tasks:
+
+    - name: Check if Replication Manager is installed
+      shell: dpkg -l | grep replication-manager-osc
+      register: replication_manager_installed
+      changed_when: false
+      failed_when: replication_manager_installed.rc != 0
+
+    - name: Check if Replication Manager service is running
+      shell: systemctl is-active replication-manager
+      register: replication_manager_status
+      changed_when: false
+      failed_when: replication_manager_status.stdout != "active"
+
+    - name: Verify Replication Manager TOML Configuration
+      shell: cat /etc/replication-manager/cluster.d/cluster1.toml
+      register: toml_config
+      changed_when: false
+
+    - name: Display TOML Configuration
+      debug:
+        msg: "{{ toml_config.stdout }}"

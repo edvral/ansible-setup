@@ -1,0 +1,8 @@
+- name: Restart MySQL
+  service:
+    name: mysql
+    state: restarted
+  register: mysql_restart
+  failed_when: mysql_restart is failed
+  retries: 5
+  delay: 3

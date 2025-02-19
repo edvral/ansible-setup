@@ -1,0 +1,34 @@
+---
+- name: Configure MySQL Slave
+  template:
+    src: my.cnf.j2
+    dest: /etc/mysql/my.cnf
+  notify: Restart MySQL
+
+- name: Verify MySQL Configuration Before Restart
+  command: mysqld --validate-config
+  register: mysql_config_check
+  failed_when: mysql_config_check.rc != 0
+
+- name: Stop MySQL Slave IO Thread (If Running)
+  mysql_replication:
+    mode: stopreplica
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+  ignore_errors: yes
+
+- name: Configure Replication
+  mysql_replication:
+    mode: changereplication
+    primary_host: "{{ hostvars['mysql-master']['ansible_host'] }}"
+    primary_user: "repl"
+    primary_password: "repl_password"
+    master_auto_position: 1
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+
+- name: Start MySQL Slave
+  mysql_replication:
+    mode: startreplica
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"

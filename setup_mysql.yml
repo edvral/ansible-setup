@@ -1,0 +1,9 @@
+- name: Setup MySQL Master-Slave Replication
+  hosts: mysql_master
+  roles:
+    - mysql
+
+- name: Setup MySQL Slaves
+  hosts: mysql_slaves
+  roles:
+    - mysql

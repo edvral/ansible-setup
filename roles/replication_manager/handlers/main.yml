@@ -1,0 +1,4 @@
+- name: Restart Replication Manager
+  systemd:
+    name: replication-manager
+    state: restarted

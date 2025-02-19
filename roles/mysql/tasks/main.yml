@@ -1,0 +1,88 @@
+---
+- name: Install MySQL Server
+  include_tasks: install.yml
+
+- name: Install Python MySQL dependencies
+  apt:
+    name: python3-pymysql
+    state: present
+    update_cache: yes
+
+- name: Ensure MySQL root user has correct password
+  mysql_user:
+    name: root
+    host: localhost
+    password: "{{ ansible_mysql_root_password }}"
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+
+- name: Configure MySQL Master
+  include_tasks: master.yml
+  when: inventory_hostname in groups['mysql_master']
+
+- name: Configure MySQL Slaves
+  include_tasks: slave.yml
+  when: inventory_hostname in groups['mysql_slaves']
+
+- name: Disable `super-read-only` on Slaves Temporarily
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    SET GLOBAL super_read_only = OFF;
+    SET GLOBAL read_only = OFF;
+    "
+  when: inventory_hostname in groups['mysql_slaves']
+  ignore_errors: yes
+
+- name: Create ProxySQL monitoring user
+  mysql_user:
+    name: proxysql
+    host: '%'
+    password: "proxysql_password"
+    priv: "*.*:USAGE,REPLICATION CLIENT"
+    state: present
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+  when: inventory_hostname in groups['mysql_master'] or inventory_hostname in groups['mysql_slaves']
+
+- name: Create another ProxySQL monitoring user
+  mysql_user:
+    name: proxy_user
+    host: '%'
+    password: "secure_password"
+    priv: "*.*:ALL,GRANT"
+    state: present
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+  when: inventory_hostname in groups['mysql_master'] or inventory_hostname in groups['mysql_slaves']
+
+- name: Re-enable `super-read-only` on Slaves
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    SET GLOBAL read_only = ON;
+    SET GLOBAL super_read_only = ON;
+    "
+  when: inventory_hostname in groups['mysql_slaves']
+  ignore_errors: yes
+
+- name: Ensure MySQL Master is Read-Write (`read_only=OFF`)
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    SET GLOBAL read_only = OFF;
+    SET GLOBAL super_read_only = OFF;
+    SET GLOBAL auto_increment_increment = 2;
+    SET GLOBAL auto_increment_offset = 1;
+    ";
+  when: inventory_hostname in groups['mysql_master']
+  ignore_errors: yes
+
+- name: Ensure MySQL Slaves are Read-Only (`read_only=ON`)
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    SET GLOBAL read_only = ON;
+    SET GLOBAL super_read_only = ON;
+    SET GLOBAL auto_increment_increment = 2;
+    SET GLOBAL auto_increment_offset = {% if inventory_hostname == groups['mysql_slaves'][0] %}2{% else %}3{% endif %};
+    ";
+  when: inventory_hostname in groups['mysql_slaves']
+  ignore_errors: yes
+

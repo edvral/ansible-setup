@@ -1,0 +1,81 @@
+[cluster1]
+title = "mysql_cluster"
+prov-orchestrator = "onpremise"
+
+db-servers-hosts = "{{ hostvars['mysql-master']['ansible_host'] }}:3306,{{ hostvars['mysql-slave1']['ansible_host'] }}:3306,{{ hostvars['mysql-slave2']['ansible_host'] }}:3306"
+db-servers-prefered-master = "{{ hostvars['mysql-master']['ansible_host'] }}:3306,{{ hostvars['mysql-slave1']['ansible_host'] }}:3306"
+db-servers-credential = "root:{{ hostvars['mysql-master']['ansible_mysql_root_password'] }}"
+replication-credential = "repl:repl_password"
+
+##############
+## TOPOLOGY ##
+##############
+replication-master-slave-never-relay = true
+replication-multi-master = false
+replication-multi-tier-slave = false
+replication-active-passive = false
+
+################
+## MONITORING ##
+################
+monitoring-pause = false
+monitoring-innodb-status = true
+monitoring-replication-health-check = true
+monitoring-check-interval = 3
+monitoring-binlog-checksum = true
+monitoring-replication-catchup = true
+
+################
+## FAILOVER ##
+################
+failover-mode = "automatic"
+failover-pre-script = ""
+failover-post-script = ""
+
+## Slaves will re enter with read-only
+
+failover-readonly-state = true
+
+failover-event-scheduler = false
+failover-event-status = false
+
+## Failover after N failures detection
+## Cancel failover if already N failover
+## Cancel failover if last failover was N seconds before
+## Cancel failover if one slave receive master heartbeat
+## Cancel failover when replication delay is more than N seconds
+## Cancel failover in semi-sync when no slave is in sync
+
+failover-falsepositive-ping-counter = 5
+failover-limit = 0
+failover-time-limit = 0
+failover-max-slave-delay = 30
+
+failover-at-sync = true
+failover-restart-unsafe = true
+
+failover-falsepositive-maxscale = true
+failover-falsepositive-maxscale-timeout = 14
+failover-falsepositive-external = true
+failover-falsepositive-external-port = 80
+
+failover-mdev-check = true
+failover-mdev-level = "blocker"
+
+################
+## PROXYSQL CONFIGURATION ##
+################
+proxysql = true
+proxysql-servers = "192.168.56.104"
+proxysql-servers-ipv6 = ""
+proxysql-user = "proxyadmin"
+proxysql-password = "password123"
+proxysql-port = "6033"
+proxysql-admin-port = "6032"
+proxysql-reader-hostgroup = "1"
+proxysql-writer-hostgroup = "0"
+
+################
+## LOGGING ##
+################
+logfile = "/var/log/replication-manager.log"

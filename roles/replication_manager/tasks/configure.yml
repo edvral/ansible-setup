@@ -1,0 +1,11 @@
+- name: Deploy Replication Manager TOML Configuration
+  template:
+    src: cluster1.toml.j2
+    dest: /etc/replication-manager/cluster.d/cluster1.toml
+  notify: Restart Replication Manager
+
+- name: Ensure Replication Manager is started
+  systemd:
+    name: replication-manager
+    state: started
+    enabled: yes

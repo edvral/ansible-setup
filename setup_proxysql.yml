@@ -1,0 +1,4 @@
+- name: Install and Configure ProxySQL
+  hosts: proxysql
+  roles:
+    - proxysql

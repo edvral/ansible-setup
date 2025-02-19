@@ -1,0 +1,56 @@
+---
+- name: Configure MySQL Master
+  template:
+    src: my.cnf.j2
+    dest: /etc/mysql/my.cnf
+  notify: Restart MySQL
+
+- name: Verify MySQL Configuration Before Restart
+  command: mysqld --validate-config
+  register: mysql_config_check
+  failed_when: mysql_config_check.rc != 0
+
+- name: Create Replication User
+  mysql_user:
+    name: repl
+    host: '%'
+    password: "repl_password"
+    priv: "*.*:REPLICATION SLAVE"
+    state: present
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+
+- name: Get Master Status
+  command: mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SHOW MASTER STATUS;"
+  register: master_status
+
+- name: Save Master Log Position
+  set_fact:
+    master_log_file: "{{ master_status.stdout_lines[1].split()[0] }}"
+    master_log_pos: "{{ master_status.stdout_lines[1].split()[1] }}"
+
+- name: Install MySQL Python Dependencies
+  apt:
+    name: python3-mysqldb
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure MySQL root user has full access remotely
+  mysql_user:
+    name: root
+    host: "%"
+    password: "{{ ansible_mysql_root_password }}"
+    priv: "*.*:ALL,GRANT"
+    state: present
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+    login_host: localhost
+  no_log: true
+
+- name: Flush Privileges
+  mysql_query:
+    query: "FLUSH PRIVILEGES;"
+    login_user: root
+    login_password: "{{ ansible_mysql_root_password }}"
+    login_host: localhost
+

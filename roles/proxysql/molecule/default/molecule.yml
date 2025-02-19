@@ -1,0 +1,39 @@
+---
+driver:
+  name: vagrant
+
+platforms:
+  - name: proxysql-test
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    provider_options:
+      natdnshostresolver: "on"
+    interfaces:
+      - network_name: "private_network"
+        type: "dhcp"
+    groups:
+      - proxysql
+
+provisioner:
+  name: ansible
+  lint:
+    name: ansible-lint
+  inventory:
+    hosts:
+      all:
+        children:
+          proxysql:
+            hosts:
+              proxysql:
+                ansible_host: 192.168.56.104
+                ansible_user: vagrant
+                ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_proxy
+                ansible_become: true
+                ansible_become_method: sudo
+                ansible_python_interpreter: /usr/bin/python3
+
+  env:
+    ANSIBLE_ROLES_PATH: ../../../../roles
+verifier:
+  name: ansible

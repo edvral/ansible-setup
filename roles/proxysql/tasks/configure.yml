@@ -1,0 +1,151 @@
+---
+ - name: Deploy ProxySQL Configuration
+   template:
+     src: proxysql.cnf.j2
+     dest: /etc/proxysql.cnf
+   notify: Restart ProxySQL
+
+ - name: Restart ProxySQL
+   service:
+     name: proxysql
+     state: restarted
+
+ - name: Check if ProxySQL `mysql_servers` table is empty
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e "SELECT COUNT(*) FROM mysql_servers;"
+   register: mysql_server_count
+
+ - name: Debug ProxySQL Server Count
+   debug:
+     msg: "ProxySQL mysql_servers count: {{ mysql_server_count.stdout }}"
+
+ - name: Insert MySQL servers if table is empty
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
+     ('192.168.56.101', 3306, 0, 100, 1000),
+     ('192.168.56.102', 3306, 1, 100, 1000);
+     ('192.168.56.103', 3306, 1, 100, 1000);
+     LOAD MYSQL SERVERS TO RUNTIME;
+     SAVE MYSQL SERVERS TO DISK;"
+   when: mysql_server_count.stdout | int == 0
+   ignore_errors: yes
+
+ - name: Update MySQL servers if table is not empty
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     DELETE FROM mysql_servers WHERE hostname IN ('192.168.56.101', '192.168.56.102', '192.168.56.103');
+
+     INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
+     ('192.168.56.101', 3306, 0, 100, 1000), -- Master
+     ('192.168.56.102', 3306, 1, 100, 1000), -- Slave 1
+     ('192.168.56.103', 3306, 1, 100, 1000); -- Slave 2
+
+     LOAD MYSQL SERVERS TO RUNTIME;
+     SAVE MYSQL SERVERS TO DISK;"
+   when: mysql_server_count.stdout | int > 0
+   ignore_errors: yes
+
+ - name: Insert ProxySQL User
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     DELETE FROM mysql_users WHERE username = 'proxy_user';
+
+     INSERT INTO mysql_users (username, password, default_hostgroup, active, frontend, backend)
+     VALUES ('proxy_user', 'secure_password', 0, 1, 1, 1);
+
+     LOAD MYSQL USERS TO RUNTIME;
+     SAVE MYSQL USERS TO DISK;"
+   register: proxy_user_result
+   changed_when: "'ERROR' not in proxy_user_result.stderr"
+   ignore_errors: yes
+
+ - name: Ensure Replication Hostgroups Exist
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     DELETE FROM mysql_replication_hostgroups;
+     INSERT INTO mysql_replication_hostgroups (writer_hostgroup, reader_hostgroup, check_type) 
+     VALUES (0, 1, 'read_only');
+
+     LOAD MYSQL SERVERS TO RUNTIME;
+     SAVE MYSQL SERVERS TO DISK;"
+
+ - name: Update ProxySQL Admin Credentials (Allow Remote Admin)
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     UPDATE global_variables 
+     SET variable_value = 'admin:admin;proxyadmin:password123' 
+     WHERE variable_name = 'admin-admin_credentials';
+
+     LOAD ADMIN VARIABLES TO RUNTIME;
+     SAVE ADMIN VARIABLES TO DISK;"
+
+ - name: Update MySQL Interfaces
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     UPDATE global_variables 
+     SET variable_value = '0.0.0.0:3306,0.0.0.0:6033' 
+     WHERE variable_name = 'mysql-interfaces';
+
+     LOAD MYSQL VARIABLES TO RUNTIME;
+     SAVE MYSQL VARIABLES TO DISK;"
+
+ - name: Enable ProxySQL Web UI
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     UPDATE global_variables 
+     SET variable_value = 'true' 
+     WHERE variable_name = 'admin-web_enabled';
+
+     UPDATE global_variables 
+     SET variable_value = '6080' 
+     WHERE variable_name = 'admin-web_port';
+
+     LOAD ADMIN VARIABLES TO RUNTIME;
+     SAVE ADMIN VARIABLES TO DISK;"
+
+ - name: Configure Replication Monitoring
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     DELETE FROM mysql_replication_hostgroups;
+     INSERT INTO mysql_replication_hostgroups (writer_hostgroup, reader_hostgroup, check_type) VALUES (0, 1, 'read_only');
+     UPDATE global_variables SET variable_value='6000' WHERE variable_name='mysql-monitor_read_only_interval';
+     UPDATE global_variables SET variable_value='true' WHERE variable_name='mysql-monitor_writer_is_also_reader';
+     UPDATE global_variables SET variable_value='1' WHERE variable_name='mysql-monitor_replication_lag_count';
+     UPDATE global_variables SET variable_value='6000' WHERE variable_name='mysql-monitor_replication_lag_interval';
+     LOAD MYSQL VARIABLES TO RUNTIME;
+     SAVE MYSQL VARIABLES TO DISK;"
+
+ - name: Configure Monitoring User
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_username';
+     UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_password';
+     LOAD MYSQL VARIABLES TO RUNTIME;
+     SAVE MYSQL VARIABLES TO DISK;"
+   ignore_errors: yes
+
+ - name: Disable ProxySQL Monitoring
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     UPDATE global_variables SET variable_value='false' WHERE variable_name='mysql-monitor_enabled';
+     LOAD MYSQL VARIABLES TO RUNTIME;
+     SAVE MYSQL VARIABLES TO DISK;"
+
+ - name: Configure Query Routing Rules
+   shell: |
+     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     DELETE FROM mysql_query_rules;
+
+     INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply)
+     VALUES
+     (100, 1, '^SELECT', 1, 1),
+     (101, 1, '^INSERT|^UPDATE|^DELETE', 0, 1);
+
+     LOAD MYSQL QUERY RULES TO RUNTIME;
+     SAVE MYSQL QUERY RULES TO DISK;"
+
+ - name: Restart ProxySQL to Apply Changes
+   service:
+     name: proxysql
+     state: restarted

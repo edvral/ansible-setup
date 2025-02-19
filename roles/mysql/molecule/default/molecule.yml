@@ -1,0 +1,69 @@
+---
+driver:
+  name: vagrant
+
+platforms:
+  - name: mysql-master-test
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    provider_options:
+      natdnshostresolver: "on"
+    interfaces:
+      - network_name: "private_network"
+        type: "dhcp"
+    groups:
+      - mysql_master
+
+  - name: mysql-slave1-test
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    groups:
+      - mysql_slaves
+
+  - name: mysql-slave2-test
+    box: ubuntu/focal64
+    memory: 1024
+    cpus: 2
+    groups:
+      - mysql_slaves
+
+provisioner:
+  name: ansible
+  lint:
+    name: ansible-lint
+  inventory:
+    hosts:
+      all:
+        children:
+          mysql_master:
+            hosts:
+              mysql-master-test:
+                ansible_host: 192.168.56.101
+                ansible_user: vagrant
+                ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key
+                ansible_become: true
+                ansible_mysql_root_password: "your_root_password"
+
+          mysql_slaves:
+            hosts:
+              mysql-slave1-test:
+                ansible_host: 192.168.56.102
+                ansible_user: vagrant
+                ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_slave1
+                ansible_become: true
+                ansible_mysql_root_password: "your_root_password"
+
+              mysql-slave2-test:
+                ansible_host: 192.168.56.103
+                ansible_user: vagrant
+                ansible_ssh_private_key_file: ~/.ssh/vagrant_private_key_slave2
+                ansible_become: true
+                ansible_mysql_root_password: "your_root_password"
+
+  env:
+    ANSIBLE_ROLES_PATH: ../../../../roles
+
+verifier:
+  name: ansible
