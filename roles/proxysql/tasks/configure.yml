@@ -18,7 +18,7 @@
 
  - name: Check if ProxySQL `mysql_servers` table is empty
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e "SELECT COUNT(*) FROM mysql_servers;"
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -N -B -e "SELECT COUNT(*) FROM mysql_servers;"
    register: mysql_server_count
 
  - name: Debug ProxySQL Server Count
@@ -27,7 +27,7 @@
 
  - name: Insert MySQL servers if table is empty
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
      ('192.168.56.101', 3306, 0, 100, 1000),
      ('192.168.56.102', 3306, 1, 100, 1000);
@@ -39,7 +39,7 @@
 
  - name: Update MySQL servers if table is not empty
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      DELETE FROM mysql_servers WHERE hostname IN ('192.168.56.101', '192.168.56.102', '192.168.56.103');
 
      INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
@@ -54,7 +54,7 @@
 
  - name: Insert ProxySQL User
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      DELETE FROM mysql_users WHERE username = 'proxy_user';
 
      INSERT INTO mysql_users (username, password, default_hostgroup, active, frontend, backend)
@@ -68,7 +68,7 @@
 
  - name: Ensure Replication Hostgroups Exist
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      DELETE FROM mysql_replication_hostgroups;
      INSERT INTO mysql_replication_hostgroups (writer_hostgroup, reader_hostgroup, check_type) 
      VALUES (0, 1, 'read_only');
@@ -78,7 +78,7 @@
 
  - name: Update ProxySQL Admin Credentials (Allow Remote Admin)
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      UPDATE global_variables 
      SET variable_value = 'admin:admin;proxyadmin:password123' 
      WHERE variable_name = 'admin-admin_credentials';
@@ -88,7 +88,7 @@
 
  - name: Update MySQL Interfaces
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      UPDATE global_variables 
      SET variable_value = '0.0.0.0:3306,0.0.0.0:6033' 
      WHERE variable_name = 'mysql-interfaces';
@@ -98,7 +98,7 @@
 
  - name: Enable ProxySQL Web UI
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      UPDATE global_variables 
      SET variable_value = 'true' 
      WHERE variable_name = 'admin-web_enabled';
@@ -112,7 +112,7 @@
 
  - name: Configure Replication Monitoring
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      DELETE FROM mysql_replication_hostgroups;
      INSERT INTO mysql_replication_hostgroups (writer_hostgroup, reader_hostgroup, check_type) VALUES (0, 1, 'read_only');
      UPDATE global_variables SET variable_value='6000' WHERE variable_name='mysql-monitor_read_only_interval';
@@ -124,7 +124,7 @@
 
  - name: Configure Monitoring User
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_username';
      UPDATE global_variables SET variable_value='monitor' WHERE variable_name='mysql-monitor_password';
      LOAD MYSQL VARIABLES TO RUNTIME;
@@ -133,14 +133,14 @@
 
  - name: Disable ProxySQL Monitoring
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      UPDATE global_variables SET variable_value='false' WHERE variable_name='mysql-monitor_enabled';
      LOAD MYSQL VARIABLES TO RUNTIME;
      SAVE MYSQL VARIABLES TO DISK;"
 
  - name: Configure Query Routing Rules
    shell: |
-     mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
+     mysql -u proxyadmin -ppassword123 -h 192.168.56.104 -P 6032 -e "
      DELETE FROM mysql_query_rules;
 
      INSERT INTO mysql_query_rules (rule_id, active, match_pattern, destination_hostgroup, apply)
