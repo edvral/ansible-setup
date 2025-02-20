@@ -102,8 +102,18 @@
     mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
     STOP SLAVE;
     RESET MASTER;
-    SET GLOBAL gtid_purged = '{{ hostvars[groups['mysql_master'][0]]['master_gtid'].stdout }}';
+    SET GLOBAL gtid_purged = '{{ hostvars[groups['mysql_master'][0]]['master_gtid'].stdout | trim }}';
     "
   when: inventory_hostname == groups['mysql_slaves'][0]
+  ignore_errors: yes
+
+- name: Reset Master on MySQL Slave 2
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    STOP SLAVE;
+    RESET MASTER;
+    SET GLOBAL gtid_purged = '{{ hostvars[groups['mysql_master'][0]]['master_gtid'].stdout | trim }}';
+    "
+  when: inventory_hostname == groups['mysql_slaves'][1]
   ignore_errors: yes
 
