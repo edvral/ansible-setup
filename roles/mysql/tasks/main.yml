@@ -86,3 +86,24 @@
   when: inventory_hostname in groups['mysql_slaves']
   ignore_errors: yes
 
+- name: Get GTID from MySQL Master
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SELECT @@global.gtid_executed;"
+  register: master_gtid
+  when: inventory_hostname in groups['mysql_master']
+
+- name: Debug GTID from Master
+  debug:
+    msg: "GTID Executed on Master: {{ master_gtid.stdout }}"
+  when: inventory_hostname in groups['mysql_master']
+
+- name: Reset Master on MySQL Slave 1
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
+    STOP SLAVE;
+    RESET MASTER;
+    SET GLOBAL gtid_purged = '{{ hostvars[groups['mysql_master'][0]]['master_gtid'].stdout }}';
+    "
+  when: inventory_hostname == groups['mysql_slaves'][0]
+  ignore_errors: yes
+
