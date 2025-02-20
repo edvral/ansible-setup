@@ -108,6 +108,7 @@
     STOP SLAVE;
     RESET MASTER;
     SET GLOBAL gtid_purged = '{{ formatted_gtid }}';
+    START SLAVE;
     "
   when: inventory_hostname in groups['mysql_slaves']
   ignore_errors: yes
