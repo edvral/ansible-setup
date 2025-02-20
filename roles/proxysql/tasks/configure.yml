@@ -10,6 +10,12 @@
      name: proxysql
      state: restarted
 
+ - name: Ensure ProxySQL is running before executing MySQL queries
+   shell: systemctl is-active proxysql
+   register: proxysql_status
+   changed_when: false
+   failed_when: "'inactive' in proxysql_status.stdout or 'failed' in proxysql_status.stdout"
+
  - name: Check if ProxySQL `mysql_servers` table is empty
    shell: |
      mysql -u admin -padmin -h 127.0.0.1 -P 6032 -N -B -e "SELECT COUNT(*) FROM mysql_servers;"
