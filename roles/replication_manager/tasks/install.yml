@@ -1,26 +1,30 @@
-- name: Install required dependencies
-  apt:
-    name:
-      - gpg
-      - wget
-      - curl
-      - lsb-release
-      - gnupg
-    state: present
-    update_cache: yes
+- name: Check if Signal18 GPG Key is already added
+  shell: gpg --list-keys FAE20E50
+  register: gpg_key_check
+  changed_when: false
+  ignore_errors: yes
 
 - name: Add Signal18 GPG Key (Ubuntu 20.04+)
   shell: |
     gpg --recv-keys --keyserver keyserver.ubuntu.com FAE20E50
     gpg --export FAE20E50 > /etc/apt/trusted.gpg.d/signal18.gpg
+  when: gpg_key_check.rc != 0
+
+- name: Check if Signal18 Repository already exists
+  stat:
+    path: /etc/apt/sources.list.d/signal18.list
+  register: repo_file
 
 - name: Add Signal18 Replication Manager Repository
   shell: |
     echo "deb [signed-by=/etc/apt/trusted.gpg.d/signal18.gpg] http://repo.signal18.io/deb $(lsb_release -sc) 2.3" > /etc/apt/sources.list.d/signal18.list
+  when: not repo_file.stat.exists
+  register: repo_added
 
-- name: Update APT Repository Cache
+- name: Update APT Repository Cache only if repo was added
   apt:
     update_cache: yes
+  when: repo_added.changed
 
 - name: Install Replication Manager
   apt:
