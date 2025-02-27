@@ -8,6 +8,7 @@
 - name: Verify MySQL Configuration Before Restart
   command: mysqld --validate-config
   register: mysql_config_check
+  changed_when: false
   failed_when: mysql_config_check.rc != 0
 
 - name: Create Replication User
@@ -23,6 +24,7 @@
 - name: Get Master Status
   command: mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SHOW MASTER STATUS;"
   register: master_status
+  changed_when: false
 
 - name: Save Master Log Position
   set_fact:
@@ -53,4 +55,3 @@
     login_user: root
     login_password: "{{ ansible_mysql_root_password }}"
     login_host: localhost
-
