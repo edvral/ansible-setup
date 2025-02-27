@@ -8,16 +8,31 @@
 - name: Verify MySQL Configuration Before Restart
   command: mysqld --validate-config
   register: mysql_config_check
+  changed_when: false
   failed_when: mysql_config_check.rc != 0
+
+- name: Check if Slave is Running
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SHOW SLAVE STATUS\G" | grep 'Slave_IO_Running: Yes' || true
+  register: slave_status_check
+  changed_when: false
+  failed_when: false
 
 - name: Stop MySQL Slave IO Thread (If Running)
   mysql_replication:
     mode: stopreplica
     login_user: root
     login_password: "{{ ansible_mysql_root_password }}"
-  ignore_errors: yes
+  when: "'Slave_IO_Running: Yes' in slave_status_check.stdout"
+  changed_when: false
 
-- name: Configure Replication
+- name: Check if Replication is Configured
+  shell: mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SHOW SLAVE STATUS\G" | grep "Master_Host"
+  register: replication_status
+  failed_when: false
+  changed_when: false
+
+- name: Configure Replication only if needed
   mysql_replication:
     mode: changereplication
     primary_host: "{{ hostvars['mysql-master']['ansible_host'] }}"
@@ -26,9 +41,19 @@
     master_auto_position: 1
     login_user: root
     login_password: "{{ ansible_mysql_root_password }}"
+  when: "'Master_Host' not in replication_status.stdout"
 
-- name: Start MySQL Slave
+- name: Check if Slave is Running
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -e "SHOW SLAVE STATUS\G" | grep 'Slave_IO_Running: Yes' || true
+  register: slave_running_check
+  changed_when: false
+  failed_when: false
+
+- name: Start MySQL Slave only if not running
   mysql_replication:
     mode: startreplica
     login_user: root
     login_password: "{{ ansible_mysql_root_password }}"
+  when: "'Slave_IO_Running: Yes' not in slave_running_check.stdout"
+  changed_when: false
