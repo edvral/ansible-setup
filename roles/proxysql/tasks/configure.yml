@@ -119,10 +119,8 @@
      mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
      UPDATE global_variables
      SET variable_value = '0.0.0.0:3306,0.0.0.0:6033'
-     WHERE variable_name = 'mysql-interfaces';
-
-     LOAD MYSQL VARIABLES TO RUNTIME;
-     SAVE MYSQL VARIABLES TO DISK;"
+     WHERE variable_name = 'mysql-interfaces';    
+     "
    when: current_mysql_interfaces.stdout.strip() != "0.0.0.0:3306,0.0.0.0:6033"
 
  - name: Check if ProxySQL Web UI is already enabled
