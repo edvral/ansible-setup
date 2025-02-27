@@ -24,14 +24,21 @@
   include_tasks: slave.yml
   when: inventory_hostname in groups['mysql_slaves']
 
+- name: Check if `super-read-only` is enabled on Slaves
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -N -B -e "SELECT @@global.super_read_only;"
+  register: slave_super_read_only
+  changed_when: false
+  when: inventory_hostname in groups['mysql_slaves']
+
 - name: Disable `super-read-only` on Slaves Temporarily
   shell: |
     mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
     SET GLOBAL super_read_only = OFF;
     SET GLOBAL read_only = OFF;
     "
-  when: inventory_hostname in groups['mysql_slaves']
-  ignore_errors: yes
+  when: inventory_hostname in groups['mysql_slaves'] and slave_super_read_only.stdout.strip() == "1"
+  changed_when: false
 
 - name: Create ProxySQL monitoring user
   mysql_user:
@@ -61,8 +68,15 @@
     SET GLOBAL read_only = ON;
     SET GLOBAL super_read_only = ON;
     "
-  when: inventory_hostname in groups['mysql_slaves']
-  ignore_errors: yes
+  when: inventory_hostname in groups['mysql_slaves'] and slave_super_read_only.stdout.strip() == "1"
+  changed_when: false
+
+- name: Check if Master is in Read-Only mode
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -N -B -e "SELECT @@global.read_only;"
+  register: master_read_only
+  changed_when: false
+  when: inventory_hostname in groups['mysql_master']
 
 - name: Ensure MySQL Master is Read-Write (`read_only=OFF`)
   shell: |
@@ -71,9 +85,15 @@
     SET GLOBAL super_read_only = OFF;
     SET GLOBAL auto_increment_increment = 2;
     SET GLOBAL auto_increment_offset = 1;
-    ";
-  when: inventory_hostname in groups['mysql_master']
-  ignore_errors: yes
+    "
+  when: inventory_hostname in groups['mysql_master'] and master_read_only.stdout.strip() == "1"
+
+- name: Check if Slaves are in Read-Only mode
+  shell: |
+    mysql -u root -p'{{ ansible_mysql_root_password }}' -N -B -e "SELECT @@global.read_only;"
+  register: slave_read_only
+  changed_when: false
+  when: inventory_hostname in groups['mysql_slaves']
 
 - name: Ensure MySQL Slaves are Read-Only (`read_only=ON`)
   shell: |
@@ -82,9 +102,8 @@
     SET GLOBAL super_read_only = ON;
     SET GLOBAL auto_increment_increment = 2;
     SET GLOBAL auto_increment_offset = {% if inventory_hostname == groups['mysql_slaves'][0] %}2{% else %}3{% endif %};
-    ";
-  when: inventory_hostname in groups['mysql_slaves']
-  ignore_errors: yes
+    "
+  when: inventory_hostname in groups['mysql_slaves'] and slave_read_only.stdout.strip() == "0"
 
 - name: Get GTID Executed from MySQL Master
   shell: |
@@ -92,6 +111,7 @@
   register: master_gtid
   delegate_to: "{{ groups['mysql_master'][0] }}"
   run_once: true
+  changed_when: false
 
 - name: Format GTID Executed (Remove Newlines)
   set_fact:
@@ -102,7 +122,13 @@
     msg: "Formatted GTID: {{ formatted_gtid }}"
   run_once: true
 
-- name: Stop MySQL Slave and Reset Master
+- name: Check Current GTID on Slave
+  shell: mysql -u root -p'{{ ansible_mysql_root_password }}' -N -B -e "SELECT @@global.gtid_executed;"
+  register: slave_gtid
+  changed_when: false
+  when: inventory_hostname in groups['mysql_slaves']
+
+- name: Stop MySQL Slave and Reset Master only if needed
   shell: |
     mysql -u root -p'{{ ansible_mysql_root_password }}' -e "
     STOP SLAVE;
@@ -110,7 +136,6 @@
     SET GLOBAL gtid_purged = '{{ formatted_gtid }}';
     START SLAVE;
     "
-  when: inventory_hostname in groups['mysql_slaves']
+  when: inventory_hostname in groups['mysql_slaves'] and slave_gtid.stdout.strip() != formatted_gtid
+  changed_when: false
   ignore_errors: yes
-
-
