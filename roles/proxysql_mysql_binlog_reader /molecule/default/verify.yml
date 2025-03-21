@@ -1,0 +1,54 @@
+---
+- name: Verify ProxySQL Binlog Reader Installation
+  hosts: mysql_master:mysql_slaves
+  become: true
+  tasks:
+
+    - name: Check if proxysql_binlog_reader is installed
+      command: which proxysql_binlog_reader
+      register: reader_path
+      changed_when: false
+      failed_when: reader_path.rc != 0
+
+    - name: Check if proxysql_binlog_reader service is enabled
+      systemd:
+        name: proxysql_binlog_reader
+        enabled: yes
+      check_mode: yes
+      register: service_enabled
+
+    - name: Fail if service is not enabled
+      fail:
+        msg: "proxysql_binlog_reader service is not enabled"
+      when: not service_enabled.enabled
+
+    - name: Check if proxysql_binlog_reader service is running
+      systemd:
+        name: proxysql_binlog_reader
+        state: started
+      check_mode: yes
+      register: service_status
+
+    - name: Fail if service is not running
+      fail:
+        msg: "proxysql_binlog_reader service is not running"
+      when: not service_status.status.ActiveState == 'active'
+
+    - name: Check if port 6020 is listening
+      shell: ss -tuln | grep ':6020'
+      register: port_check
+      changed_when: false
+      failed_when: port_check.rc != 0
+
+    - name: (Optional) Debug GTID stats (from ProxySQL if reachable)
+      shell: |
+        mysql -u proxyadmin -ppassword123 -h 127.0.0.1 -P 6032 -e "SELECT * FROM stats_mysql_gtid_executed;"
+      register: gtid_output
+      changed_when: false
+      ignore_errors: true
+      when: inventory_hostname == "proxysql"
+
+    - name: Show GTID data (if available)
+      debug:
+        msg: "{{ gtid_output.stdout_lines }}"
+      when: gtid_output is defined and inventory_hostname == "proxysql"
