@@ -2,4 +2,4 @@
   hosts: mysql_nodes
   become: true
   roles:
-    - pp
+    - proxysql_mysql_binlog_reader
