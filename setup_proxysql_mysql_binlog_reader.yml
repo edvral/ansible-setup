@@ -2,4 +2,4 @@
   hosts: mysql_nodes
   become: yes
   roles:
-    - replication_manager
+    - proxysql_mysql_binlog_reader
