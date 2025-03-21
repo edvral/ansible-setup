@@ -1,0 +1,6 @@
+---
+- name: Apply proxysql_mysql_binlog_reader role
+  hosts: mysql_master:mysql_slaves
+  become: true
+  roles:
+    - proxysql_mysql_binlog_reader
