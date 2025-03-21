@@ -1,0 +1,11 @@
+[Unit]
+Description=ProxySQL Binlog Reader
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/proxysql_binlog_reader -h 127.0.0.1 -u root -p {{ ansible_mysql_root_password }} -P 3306 -l 6020 -f
+Restart=always
+User=vagrant
+
+[Install]
+WantedBy=multi-user.target
