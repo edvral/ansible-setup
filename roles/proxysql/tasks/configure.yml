@@ -21,7 +21,7 @@
    debug:
      msg: "ProxySQL mysql_servers count: {{ mysql_server_count.stdout }}"
 
-  - name: Insert MySQL servers if table is empty
+ - name: Insert MySQL servers if table is empty
    shell: |
      mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
      INSERT INTO mysql_servers (hostname, port, gtid_port, hostgroup_id, weight, max_connections, comment) VALUES
