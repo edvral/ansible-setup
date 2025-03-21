@@ -21,13 +21,13 @@
    debug:
      msg: "ProxySQL mysql_servers count: {{ mysql_server_count.stdout }}"
 
- - name: Insert MySQL servers if table is empty
+  - name: Insert MySQL servers if table is empty
    shell: |
      mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
-     INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
-     ('192.168.56.101', 3306, 0, 100, 1000),
-     ('192.168.56.102', 3306, 1, 100, 1000);
-     ('192.168.56.103', 3306, 1, 100, 1000);
+     INSERT INTO mysql_servers (hostname, port, gtid_port, hostgroup_id, weight, max_connections, comment) VALUES
+     ('192.168.56.101', 3306, 6020, 0, 100, 1000, 'MySQL Master'),
+     ('192.168.56.102', 3306, 6020, 1, 100, 1000, 'MySQL Slave 1');
+     ('192.168.56.103', 3306, 6020, 1, 100, 1000, 'MySQL Slave 2');
      LOAD MYSQL SERVERS TO RUNTIME;
      SAVE MYSQL SERVERS TO DISK;"
    when: mysql_server_count.stdout | int == 0
@@ -45,10 +45,10 @@
      mysql -u admin -padmin -h 127.0.0.1 -P 6032 -e "
      DELETE FROM mysql_servers WHERE hostname IN ('192.168.56.101', '192.168.56.102', '192.168.56.103');
 
-     INSERT INTO mysql_servers (hostname, port, hostgroup_id, weight, max_connections) VALUES
-     ('192.168.56.101', 3306, 0, 100, 1000),
-     ('192.168.56.102', 3306, 1, 100, 1000),
-     ('192.168.56.103', 3306, 1, 100, 1000);
+     INSERT INTO mysql_servers (hostname, port, gtid_port, hostgroup_id, weight, max_connections, comment) VALUES
+     ('192.168.56.101', 3306, 6020, 0, 100, 1000, 'MySQL Master'),
+     ('192.168.56.102', 3306, 6020, 1, 100, 1000, 'MySQL Slave 1');
+     ('192.168.56.103', 3306, 6020, 1, 100, 1000, 'MySQL Slave 2');
      LOAD MYSQL SERVERS TO RUNTIME;
      SAVE MYSQL SERVERS TO DISK;"
    when: server_check.stdout | int == 0
