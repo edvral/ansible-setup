@@ -1,5 +1,5 @@
 - name: Install and configure ProxySQL Binlog Reader
-  hosts: mysql_master
+  hosts: mysql_nodes
   roles:
     - proxysql_mysql_binlog_reader
 
