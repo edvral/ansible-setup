@@ -2,4 +2,5 @@
   hosts: mysql_nodes
   become: yes
   roles:
-    - proxysql_mysql_binlog_reader
+    - /tmp/semaphore/repository_2_11/roles/proxysql_mysql_binlog_reader
+
