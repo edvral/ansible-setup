@@ -1,4 +1,4 @@
-# Smartivus Praktika
+# Smartivus Praktika Įmonėje
 
 ## MySQL duomenų bazės aukšto patikimumo sprendimo diegimas bei testavimas naudojant Ansible diegimo įrankį
 
