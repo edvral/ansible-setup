@@ -9,5 +9,5 @@ Projektas apima:
 - `MySQL` replikacijos diegimą
 - `ProxySQL` diegimą ir konfigūravimą
 - Binlog skaitytuvo diegimą tarp `MySQL` ir `ProxySQL`
-- Replikacijos valdytojo (failover manager) diegimą
+- Replikacijos valdytojo (replication manager) diegimą
 - Automatizuotus testavimo scenarijus
