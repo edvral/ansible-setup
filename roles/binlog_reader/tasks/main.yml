@@ -1,1 +1,26 @@
+---
+- name: Download ProxySQL Binlog Reader
+  get_url:
+    url: https://github.com/sysown/proxysql_mysqlbinlog/releases/download/v2.1/proxysql-mysqlbinlog_2.1-5-g7f50bd0-ubuntu20_amd64.deb
+    dest: /tmp/proxysql_binlog.deb
 
+- name: Install ProxySQL Binlog Reader
+  apt:
+    deb: /tmp/proxysql_binlog.deb
+  become: true
+
+- name: Copy systemd service file for proxysql_binlog_reader
+  template:
+    src: proxysql_binlog_reader.service.j2
+    dest: /etc/systemd/system/proxysql_binlog_reader.service
+    mode: '0644'
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+
+- name: Enable and start proxysql_binlog_reader
+  systemd:
+    name: proxysql_binlog_reader
+    enabled: true
+    state: started
